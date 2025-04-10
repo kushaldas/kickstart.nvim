@@ -179,6 +179,9 @@ vim.keymap.set('t', '<Esc><Esc>', '<C-\\><C-n>', { desc = 'Exit terminal mode' }
 vim.keymap.set('i', '<C-s>', '<C-o>:w!<CR>', { silent = true }) -- On blank line stays on normal mode
 vim.keymap.set('n', '<C-s>', ':w!<CR>', { silent = true })
 
+-- Execute the current source file LUA
+vim.keymap.set('n', '<space>X', '<cmd>source %<CR>')
+
 -- TIP: Disable arrow keys in normal mode
 -- vim.keymap.set('n', '<left>', '<cmd>echo "Use h to move!!"<CR>')
 -- vim.keymap.set('n', '<right>', '<cmd>echo "Use l to move!!"<CR>')
@@ -248,6 +251,24 @@ require('lazy').setup({
   -- NOTE: Plugins can be added with a link (or for a github repo: 'owner/repo' link).
   'tpope/vim-sleuth', -- Detect tabstop and shiftwidth automatically
   'preservim/nerdcommenter',
+  -- For local development
+  --
+  {
+    'whynothugo/lsp_lines',
+    dir = '~/code/lsp_lines.nvim',
+    config = function()
+      vim.diagnostic.config {
+        virtual_text = false,
+        virtual_lines = true,
+      }
+    end,
+  },
+  {
+    'kushaldas/pastewindow.nvim',
+    config = function()
+      require 'pastewindow'
+    end,
+  },
   -- For autoclosing of tags
   {
     'windwp/nvim-ts-autotag',
@@ -278,6 +299,22 @@ require('lazy').setup({
     config = function()
       vim.keymap.set({ 'n', 'v' }, '<leader>xe', require('nvim-emmet').wrap_with_abbreviation)
     end,
+  },
+  -- visual cursor
+  {
+    'sphamba/smear-cursor.nvim',
+    opts = {},
+  },
+  -- neogit
+  {
+    'NeogitOrg/neogit',
+    dependencies = {
+      'nvim-lua/plenary.nvim', -- required
+      'sindrets/diffview.nvim', -- optional - Diff integration
+      -- Only one of these is needed.
+      'nvim-telescope/telescope.nvim', -- optional
+    },
+    config = true,
   },
 
   -- NOTE: Plugins can also be added by using a table,
@@ -517,6 +554,8 @@ require('lazy').setup({
       'hrsh7th/cmp-nvim-lsp',
     },
     config = function()
+      local lspconfig = require 'lspconfig'
+      lspconfig.qmlls.setup {}
       -- Brief aside: **What is LSP?**
       --
       -- LSP is an initialism you've probably heard, but might not understand what it is.
@@ -593,7 +632,7 @@ require('lazy').setup({
           map('<leader>ca', vim.lsp.buf.code_action, '[C]ode [A]ction', { 'n', 'x' })
           -- See `:help K` for why this keymap
           map('K', vim.lsp.buf.hover, 'Hover Documentation')
-          map('<C-k>', vim.lsp.buf.signature_help, 'Signature Documentation')
+          --map('<C-k>', vim.lsp.buf.signature_help, 'Signature Documentation')
 
           -- WARN: This is not Goto Definition, this is Goto Declaration.
           --  For example, in C this would take you to the header.
@@ -671,9 +710,14 @@ require('lazy').setup({
       --        For example, to see the options for `lua_ls`, you could go to: https://luals.github.io/wiki/settings/
       local servers = {
         -- clangd = {},
-        -- gopls = {},
+        gopls = {},
         -- pyright = { capabilities = capabilities },
-        -- rust_analyzer = {},
+        rust_analyzer = {},
+        bashls = {},
+        elixirls = {
+          cmd = { '/home/kdas/bin/elixir-ls/language_server.sh' },
+        },
+        ts_ls = {},
         -- ... etc. See `:help lspconfig-all` for a list of all the pre-configured LSPs
         --
         -- Some languages (like typescript) have entire language plugins that can be useful:
@@ -736,6 +780,8 @@ require('lazy').setup({
       require('mason-tool-installer').setup { ensure_installed = ensure_installed }
 
       require('mason-lspconfig').setup {
+        ensure_installed = {}, -- explicitly set to an empty table (Kickstart populates installs via mason-tool-installer)
+        automatic_installation = false,
         handlers = {
           function(server_name)
             local server = servers[server_name] or {}
@@ -785,7 +831,8 @@ require('lazy').setup({
       formatters_by_ft = {
         lua = { 'stylua' },
         -- Conform can also run multiple formatters sequentially
-        -- python = { "isort", "black" },
+        python = { 'isort', 'ruff_format' },
+        rust = { 'rustfmt', lsp_format = 'fallback' },
         --
         -- You can use 'stop_after_first' to run the first available formatter from the list
         -- javascript = { "prettierd", "prettier", stop_after_first = true },
@@ -938,6 +985,7 @@ require('lazy').setup({
   { -- Collection of various small independent plugins/modules
     'echasnovski/mini.nvim',
     config = function()
+      require('mini.extra').setup()
       -- Better Around/Inside textobjects
       --
       -- Examples:
@@ -945,6 +993,16 @@ require('lazy').setup({
       --  - yinq - [Y]ank [I]nside [N]ext [Q]uote
       --  - ci'  - [C]hange [I]nside [']quote
       require('mini.ai').setup { n_lines = 500 }
+
+      -- https://github.com/echasnovski/nvim/blob/f027dd1307971a66d983ae6456e486de8c8c4979/init.lua#L117-L118
+      -- Also the mini extra above is for the below textobjects
+      local ai = require 'mini.ai'
+      ai.setup {
+        custom_textobjects = {
+          B = MiniExtra.gen_ai_spec.buffer(),
+          F = ai.gen_spec.treesitter { a = '@function.outer', i = '@function.inner' },
+        },
+      }
 
       -- Add/delete/replace surroundings (brackets, quotes, etc.)
       --
