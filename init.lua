@@ -102,7 +102,7 @@ vim.g.have_nerd_font = false
 vim.o.number = true
 -- You can also add relative line numbers, to help with jumping.
 --  Experiment for yourself to see if you like it!
--- vim.o.relativenumber = true
+vim.o.relativenumber = true
 
 -- Enable mouse mode, can be useful for resizing splits for example!
 vim.o.mouse = 'a'
@@ -135,7 +135,8 @@ vim.o.signcolumn = 'yes'
 vim.o.updatetime = 250
 
 -- Decrease mapped sequence wait time
-vim.o.timeoutlen = 300
+vim.o.timeoutlen = 700
+vim.o.ttimeoutlen = 0
 
 -- Configure how new splits should be opened
 vim.o.splitright = true
@@ -184,6 +185,13 @@ vim.keymap.set('n', '<leader>q', vim.diagnostic.setloclist, { desc = 'Open diagn
 -- or just use <C-\><C-n> to exit terminal mode
 vim.keymap.set('t', '<Esc><Esc>', '<C-\\><C-n>', { desc = 'Exit terminal mode' })
 
+-- NOTE:For saving the file like GUI
+vim.keymap.set('i', '<C-s>', '<C-o>:w!<CR>', { silent = true }) -- On blank line stays on normal mode
+vim.keymap.set('n', '<C-s>', ':w!<CR>', { silent = true })
+
+-- Execute the current source file LUA
+vim.keymap.set('n', '<space>X', '<cmd>source %<CR>')
+
 -- TIP: Disable arrow keys in normal mode
 -- vim.keymap.set('n', '<left>', '<cmd>echo "Use h to move!!"<CR>')
 -- vim.keymap.set('n', '<right>', '<cmd>echo "Use l to move!!"<CR>')
@@ -198,6 +206,18 @@ vim.keymap.set('n', '<C-h>', '<C-w><C-h>', { desc = 'Move focus to the left wind
 vim.keymap.set('n', '<C-l>', '<C-w><C-l>', { desc = 'Move focus to the right window' })
 vim.keymap.set('n', '<C-j>', '<C-w><C-j>', { desc = 'Move focus to the lower window' })
 vim.keymap.set('n', '<C-k>', '<C-w><C-k>', { desc = 'Move focus to the upper window' })
+
+-- NOTE: todo-comments jumps shortcut
+-- https://github.com/folke/todo-comments.nvim?tab=readme-ov-file#jumping
+vim.keymap.set('n', ']t', function()
+  require('todo-comments').jump_next()
+end, { desc = 'Next todo comment' })
+
+vim.keymap.set('n', '[t', function()
+  require('todo-comments').jump_prev()
+end, { desc = 'Previous todo comment' })
+
+
 
 -- NOTE: Some terminals have colliding keymaps or are not able to send distinct keycodes
 -- vim.keymap.set("n", "<C-S-h>", "<C-w>H", { desc = "Move window to the left" })
@@ -248,7 +268,72 @@ rtp:prepend(lazypath)
 require('lazy').setup({
   -- NOTE: Plugins can be added with a link (or for a github repo: 'owner/repo' link).
   'NMAC427/guess-indent.nvim', -- Detect tabstop and shiftwidth automatically
-
+  'preservim/nerdcommenter',
+  -- For local development
+  --
+  {
+    'whynothugo/lsp_lines',
+    dir = '~/code/lsp_lines.nvim',
+    config = function()
+      vim.diagnostic.config {
+        virtual_text = false,
+        virtual_lines = true,
+      }
+    end,
+  },
+  {
+    'kushaldas/pastewindow.nvim',
+    config = function()
+      require 'pastewindow'
+    end,
+  },
+  -- For autoclosing of tags
+  {
+    'windwp/nvim-ts-autotag',
+    lazy = false,
+    dependencies = 'nvim-treesitter/nvim-treesitter',
+    config = function()
+      require('nvim-ts-autotag').setup()
+    end,
+  },
+  -- For surround
+  {
+    'kylechui/nvim-surround',
+    dependencies = 'nvim-treesitter/nvim-treesitter-textobjects',
+    version = '*', -- Use for stability; omit to use `main` branch for the latest features
+    event = 'VeryLazy',
+    config = function()
+      require('nvim-surround').setup {
+        -- Configuration here, or leave empty to use defaults
+        aliases = {
+          ['<'] = 't',
+        },
+      }
+    end,
+  },
+  -- emmet HTML
+  {
+    'olrtg/nvim-emmet',
+    config = function()
+      vim.keymap.set({ 'n', 'v' }, '<leader>xe', require('nvim-emmet').wrap_with_abbreviation)
+    end,
+  },
+  -- visual cursor
+  {
+    'sphamba/smear-cursor.nvim',
+    opts = {},
+  },
+  -- neogit
+  {
+    'NeogitOrg/neogit',
+    dependencies = {
+      'nvim-lua/plenary.nvim', -- required
+      'sindrets/diffview.nvim', -- optional - Diff integration
+      -- Only one of these is needed.
+      'nvim-telescope/telescope.nvim', -- optional
+    },
+    config = true,
+  },
   -- NOTE: Plugins can also be added by using a table,
   -- with the first argument being the link and the following
   -- keys can be used to configure plugin behavior/loading/etc.
@@ -493,6 +578,8 @@ require('lazy').setup({
       'saghen/blink.cmp',
     },
     config = function()
+      local lspconfig = require 'lspconfig'
+      lspconfig.qmlls.setup {}
       -- Brief aside: **What is LSP?**
       --
       -- LSP is an initialism you've probably heard, but might not understand what it is.
@@ -542,7 +629,10 @@ require('lazy').setup({
           -- Execute a code action, usually your cursor needs to be on top of an error
           -- or a suggestion from your LSP for this to activate.
           map('gra', vim.lsp.buf.code_action, '[G]oto Code [A]ction', { 'n', 'x' })
-
+          
+          -- See `:help K` for why this keymap
+          map('K', vim.lsp.buf.hover, 'Hover Documentation')
+          
           -- Find references for the word under your cursor.
           map('grr', require('telescope.builtin').lsp_references, '[G]oto [R]eferences')
 
@@ -634,10 +724,10 @@ require('lazy').setup({
         underline = { severity = vim.diagnostic.severity.ERROR },
         signs = vim.g.have_nerd_font and {
           text = {
-            [vim.diagnostic.severity.ERROR] = '󰅚 ',
-            [vim.diagnostic.severity.WARN] = '󰀪 ',
-            [vim.diagnostic.severity.INFO] = '󰋽 ',
-            [vim.diagnostic.severity.HINT] = '󰌶 ',
+            [vim.diagnostic.severity.ERROR] = '✖ ',
+            [vim.diagnostic.severity.WARN] = '⚠ ',
+            [vim.diagnostic.severity.INFO] = ' ',
+            [vim.diagnostic.severity.HINT] = '➤ ',
           },
         } or {},
         virtual_text = {
@@ -654,6 +744,8 @@ require('lazy').setup({
           end,
         },
       }
+      -- NOTE: inlay hint
+      vim.lsp.inlay_hint.enable(true)
 
       -- LSP servers and clients are able to communicate to each other what features they support.
       --  By default, Neovim doesn't support everything that is in the LSP specification.
@@ -672,9 +764,14 @@ require('lazy').setup({
       --        For example, to see the options for `lua_ls`, you could go to: https://luals.github.io/wiki/settings/
       local servers = {
         -- clangd = {},
-        -- gopls = {},
-        -- pyright = {},
-        -- rust_analyzer = {},
+        gopls = {},
+        -- pyright = { capabilities = capabilities },
+        rust_analyzer = {},
+        bashls = {},
+        elixirls = {
+          cmd = { '/home/kdas/bin/elixir-ls/language_server.sh' },
+        },
+        ts_ls = {},
         -- ... etc. See `:help lspconfig-all` for a list of all the pre-configured LSPs
         --
         -- Some languages (like typescript) have entire language plugins that can be useful:
@@ -683,6 +780,27 @@ require('lazy').setup({
         -- But for many setups, the LSP (`ts_ls`) will work just fine
         -- ts_ls = {},
         --
+
+        basedpyright = {
+          settings = {
+            basedpyright = {
+              analysis = {
+                diagnosticMode = 'openFilesOnly',
+                typeCheckingMode = 'basic',
+                capabilities = capabilities,
+                useLibraryCodeForTypes = true,
+                diagnosticSeverityOverrides = {
+                  autoSearchPaths = true,
+                  enableTypeIgnoreComments = false,
+                  reportGeneralTypeIssues = 'none',
+                  reportArgumentType = 'none',
+                  reportUnknownMemberType = 'none',
+                  reportAssignmentType = 'none',
+                },
+              },
+            },
+          },
+        },
 
         lua_ls = {
           -- cmd = { ... },
@@ -769,7 +887,8 @@ require('lazy').setup({
       formatters_by_ft = {
         lua = { 'stylua' },
         -- Conform can also run multiple formatters sequentially
-        -- python = { "isort", "black" },
+        python = { 'isort', 'ruff_format' },
+        rust = { 'rustfmt', lsp_format = 'fallback' },
         --
         -- You can use 'stop_after_first' to run the first available formatter from the list
         -- javascript = { "prettierd", "prettier", stop_after_first = true },
@@ -904,6 +1023,7 @@ require('lazy').setup({
   { -- Collection of various small independent plugins/modules
     'echasnovski/mini.nvim',
     config = function()
+      require('mini.extra').setup()
       -- Better Around/Inside textobjects
       --
       -- Examples:
@@ -912,12 +1032,27 @@ require('lazy').setup({
       --  - ci'  - [C]hange [I]nside [']quote
       require('mini.ai').setup { n_lines = 500 }
 
+      -- https://github.com/echasnovski/nvim/blob/f027dd1307971a66d983ae6456e486de8c8c4979/init.lua#L117-L118
+      -- Also the mini extra above is for the below textobjects
+      local ai = require 'mini.ai'
+      ai.setup {
+        custom_textobjects = {
+          B = MiniExtra.gen_ai_spec.buffer(),
+          F = ai.gen_spec.treesitter { a = '@function.outer', i = '@function.inner' },
+        },
+      }
+
+
+
       -- Add/delete/replace surroundings (brackets, quotes, etc.)
       --
       -- - saiw) - [S]urround [A]dd [I]nner [W]ord [)]Paren
       -- - sd'   - [S]urround [D]elete [']quotes
       -- - sr)'  - [S]urround [R]eplace [)] [']
-      require('mini.surround').setup()
+      -- require('mini.surround').setup()
+      
+      -- Autopair
+      require('mini.pairs').setup()
 
       -- Simple and easy statusline.
       --  You could remove this setup call if you don't like it,
