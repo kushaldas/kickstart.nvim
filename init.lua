@@ -786,27 +786,6 @@ require('lazy').setup({
         -- ts_ls = {},
         --
 
-        basedpyright = {
-          settings = {
-            basedpyright = {
-              analysis = {
-                diagnosticMode = 'openFilesOnly',
-                typeCheckingMode = 'basic',
-                capabilities = capabilities,
-                useLibraryCodeForTypes = true,
-                diagnosticSeverityOverrides = {
-                  autoSearchPaths = true,
-                  enableTypeIgnoreComments = false,
-                  reportGeneralTypeIssues = 'none',
-                  reportArgumentType = 'none',
-                  reportUnknownMemberType = 'none',
-                  reportAssignmentType = 'none',
-                },
-              },
-            },
-          },
-        },
-
         lua_ls = {
           -- cmd = { ... },
           -- filetypes = { ... },
